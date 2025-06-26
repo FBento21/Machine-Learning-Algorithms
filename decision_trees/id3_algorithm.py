@@ -1,25 +1,17 @@
 import numpy as np
 import pandas as pd
 
-def create_dataset():
-    data = {
-        "Outlook": ["Sunny", "Sunny", "Overcast", "Rain", "Rain", "Rain", "Overcast", "Sunny", "Sunny", "Rain", "Sunny",
-                    "Overcast", "Overcast", "Rain"],
-        "Temperature": ["Hot", "Hot", "Hot", "Mild", "Cool", "Cool", "Cool", "Mild", "Cool", "Mild", "Mild", "Mild", "Hot",
-                  "Mild"],
-        "Humidity": ["High", "High", "High", "High", "Normal", "Normal", "Normal", "High", "Normal", "Normal", "Normal",
-                     "High", "Normal", "High"],
-        "Wind": ["Weak", "Strong", "Weak", "Weak", "Weak", "Strong", "Strong", "Weak", "Weak", "Weak", "Strong",
-                 "Strong", "Weak", "Strong"],
-        "Play": ["No", "No", "Yes", "Yes", "Yes", "No", "Yes", "No", "Yes", "Yes", "Yes", "Yes", "Yes", "No"]
-    }
-
-    return pd.DataFrame(data)
-
-
 class DecisionTreeClassifier:
-    def __init__(self):
-        pass
+    def __init__(self, impurity_criterion='entropy'):
+        self.tree = None
+        self.impurity_criterion = impurity_criterion
+        self.leaf_nodes = []
+
+    def _compute_impurity(self, y):
+        if self.impurity_criterion == 'entropy':
+            return self._compute_target_entropy(y)
+        else:
+            raise f'Impurity Criterion {self.impurity_criterion} not Implemented!'
 
     @staticmethod
     def _compute_target_entropy(y):
@@ -31,8 +23,8 @@ class DecisionTreeClassifier:
         information_gain = 0
         feature_observations = X[feat].unique()
         for observation in feature_observations:
-            y_filtered_by_feat_obs = y[df[feat].isin([observation])]
-            y_filtered_by_feat_obs_entropy = self._compute_target_entropy(y_filtered_by_feat_obs)
+            y_filtered_by_feat_obs = y[X[feat].isin([observation])]
+            y_filtered_by_feat_obs_entropy = self._compute_impurity(y_filtered_by_feat_obs)
             proba_weight = X[feat].value_counts()[observation] / size
             information_gain -= proba_weight * y_filtered_by_feat_obs_entropy
         information_gain += entropy
@@ -57,7 +49,7 @@ class DecisionTreeClassifier:
 
         return X_filtered, y_filtered
 
-    def _fit_one_tree_level(self, X, y, root_node, queue):
+    def _fit_stump(self, X, y, root_node, queue):
         root_node_feat = root_node.feature
         visited_nodes = []
         for feat in X[root_node_feat].unique():
@@ -67,11 +59,15 @@ class DecisionTreeClassifier:
             if conditional_y.nunique() == 1:
                 value = conditional_y.unique()[0]
                 leaf_node = Node(value=value)
-            elif conditional_X.shape[1] == 0:
-                pass
+                self.leaf_nodes.append(leaf_node)
+            elif conditional_X.shape[1] == 1:
+                best_value = conditional_y.mode()[0]
+                leaf_node = Node(value=best_value)
+                self.leaf_nodes.append(leaf_node)
             else:
                 leaf_node_feat = self._compute_best_feature(conditional_X, conditional_y)
                 leaf_node = Node(feature=leaf_node_feat)
+                visited_nodes.append(leaf_node_feat)
                 queue.append(leaf_node)
 
             leaf_node.parent_relation[root_node_feat] = feat
@@ -82,12 +78,27 @@ class DecisionTreeClassifier:
         X_ = X.copy()
         y_ = y.copy()
         node_feat = self._compute_best_feature(X, y)
-        root_node = Node(feature=node_feat)
-        queue = [root_node]
+        self.tree = Node(feature=node_feat)
+        queue = [self.tree]
         while queue:
             node = queue.pop(0)
             X_filtered, y_filtered = self._filter_df_by_dict(X_, y_, node.parent_relation)
-            self._fit_one_tree_level(X_filtered, y_filtered, node, queue)
+            self._fit_stump(X_filtered, y_filtered, node, queue)
+
+    def _predict_one_sample(self, x):
+        node = self.tree
+        node_feat = node.feature
+        node_feat_name = x[node_feat]
+        while True:
+            node = node.path_to_children[node_feat_name]
+            if node.value:
+                return node.value
+            node_feat_name = x[node.feature]
+
+    def predict(self, X):
+        assert self.tree is not None, 'Tree must be fitted!'
+        pred = X.apply(self._predict_one_sample, axis=1).to_list()
+        return pred
 
     def transform(self):
         pass
@@ -99,10 +110,45 @@ class Node:
         self.path_to_children = {}
         self.parent_relation = {}
 
+    def __repr__(self):
+        if self.value:
+            return f'Node(value={self.value})'
+        else:
+            return f'Node(feature={self.feature})'
+
+
 if __name__ == '__main__':
-    df = create_dataset()
+    def create_dataset():
+        data = {
+            "Outlook": ["Sunny", "Sunny", "Overcast", "Rain", "Rain", "Rain", "Overcast", "Sunny", "Sunny", "Rain",
+                        "Sunny",
+                        "Overcast", "Overcast", "Rain"],
+            "Temperature": ["Hot", "Hot", "Hot", "Mild", "Cool", "Cool", "Cool", "Mild", "Cool", "Mild", "Mild", "Mild",
+                            "Hot",
+                            "Mild"],
+            # "Humidity": ["High", "High", "High", "High", "Normal", "Normal", "Normal", "High", "Normal", "Normal", "Normal",
+            #              "High", "Normal", "High"],
+            # "Wind": ["Weak", "Strong", "Weak", "Weak", "Weak", "Strong", "Strong", "Weak", "Weak", "Weak", "Strong",
+            #          "Strong", "Weak", "Strong"],
+            "Play": ["No", "No", "Yes", "Yes", "Yes", "No", "Yes", "No", "Yes", "Yes", "Yes", "Yes", "Yes", "No"]
+        }
+
+        data_test = {
+            "Outlook": ["Sunny", "Rain"],
+            "Temperature": ["Hot", "Mild"],
+            # "Humidity": ["High", "High", "High", "High", "Normal", "Normal", "Normal", "High", "Normal", "Normal", "Normal",
+            #              "High", "Normal", "High"],
+            # "Wind": ["Weak", "Strong", "Weak", "Weak", "Weak", "Strong", "Strong", "Weak", "Weak", "Weak", "Strong",
+            #          "Strong", "Weak", "Strong"],
+            "Play": ["No", "Yes"]
+        }
+
+        return pd.DataFrame(data), pd.DataFrame(data_test)
+
+    df_train, df_test = create_dataset()
 
     tree = DecisionTreeClassifier()
-    tree.fit(df.drop(['Play'], axis=1), df['Play'])
+    tree.fit(df_train.drop(['Play'], axis=1), df_train['Play'])
+    pred = tree.predict(df_test.drop(['Play'], axis=1))
 
-    print('hi')
+    print(pred)
