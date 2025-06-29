@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-class ID3DecisionTree:
+class ID3Classifier:
     def __init__(self, impurity_criterion='entropy'):
         self.tree = None
         self.impurity_criterion = impurity_criterion
@@ -364,8 +364,6 @@ if __name__ == '__main__':
     X_train, y_train = df_train.drop(['Play'], axis=1), df_train['Play']
     X_test, y_test = df_test.drop(['Play'], axis=1), df_test['Play']
 
-    tree = ID3DecisionTree()
+    tree = ID3Classifier()
     tree.fit(X_train, y_train)
     pred = tree.predict(X_test)
-
-    print(pred)
