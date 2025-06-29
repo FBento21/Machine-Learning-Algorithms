@@ -1,5 +1,3 @@
-from typing import Union
-
 import numpy as np
 import pandas as pd
 
@@ -12,9 +10,6 @@ class ID3DecisionTree:
     def _compute_feature_information_gain(self, X: pd.DataFrame, y: pd.Series, feat: str, sample_size: int, y_entropy: float) -> float:
         """
         Compute the information gain for a given feature.
-
-        Information gain is calculated as the reduction in entropy achieved by splitting
-        the dataset based on the specified feature.
 
         Parameters:
         ----------
@@ -96,14 +91,14 @@ class ID3DecisionTree:
             Entropy resulting from splitting on the given feature.
         """
 
-        information_gain = 0
+        entropy = 0
         feature_observations = X[feat].unique()
         for observation in feature_observations:
             y_filtered_by_feat_obs = y[X[feat].isin([observation])]
             y_filtered_by_feat_obs_entropy = self._compute_target_impurity(y_filtered_by_feat_obs)
             proba_weight = X[feat].value_counts()[observation] / sample_size
-            information_gain += proba_weight * y_filtered_by_feat_obs_entropy
-        return information_gain
+            entropy += proba_weight * y_filtered_by_feat_obs_entropy
+        return entropy
 
     def _compute_best_feature(self, X: pd.DataFrame, y: pd.Series) -> str:
         """
@@ -127,12 +122,13 @@ class ID3DecisionTree:
         """
 
         sample_size = len(y)
-        y_entropy = self._compute_target_impurity(y)
+        y_impurity = self._compute_target_impurity(y)
 
         information_gain = {}
-        for feat in X.columns:
-            information_gain[feat] = self._compute_feature_information_gain(X, y, feat, sample_size, y_entropy)
+        for feature in X.columns:
+            information_gain[feature] = self._compute_feature_information_gain(X, y, feature, sample_size, y_impurity)
 
+        # Get the key (feature) with the highest value (information gain)
         best_feature = max(information_gain, key=information_gain.get)
         return best_feature
 
@@ -196,32 +192,38 @@ class ID3DecisionTree:
             - Updates the `parent_path` attribute of each created node to track its decision path.
 
         Note:
-            Assumes the `Node` class has attributes `feature`, `value`, `children`, and `parent_path`.
+            Assumes the `Node` object has attributes `feature`, `value`, `children`, and `parent_path`.
         """
 
         root_node_feat = root_node.feature
         visited_nodes = []
-        for feat in X[root_node_feat].unique():
-            condition = X[root_node_feat].isin([feat])
+        feature_observations = X[root_node_feat].unique()
+        # Loop over all the possible observations available for root_node_feat
+        for observation in feature_observations:
+            condition = X[root_node_feat].isin([observation])
             conditional_X = X[condition].drop(visited_nodes, axis=1)
             conditional_y = y[condition]
+            # If target is pure (all values in conditional_y are the same), then create a leaf
             if conditional_y.nunique() == 1:
                 value = conditional_y.unique()[0]
                 leaf_node = Node(value=value)
                 self.leaf_nodes.append(leaf_node)
+            # If there are no more features to split (and target is not pure), create a leaf with the most common value
             elif conditional_X.shape[1] == 1:
                 best_value = conditional_y.mode()[0]
                 leaf_node = Node(value=best_value)
                 self.leaf_nodes.append(leaf_node)
+            # Create a new node using the best feature
             else:
                 leaf_node_feat = self._compute_best_feature(conditional_X, conditional_y)
                 leaf_node = Node(feature=leaf_node_feat)
                 visited_nodes.append(leaf_node_feat)
-                queue.append(leaf_node)
+                queue.append(leaf_node)  # Append the new node (stump's leaf node) to the end of the queue
 
-            leaf_node.parent_path[root_node_feat] = feat
+            # Update the path of the leaf node and save it as the children of root node
+            leaf_node.parent_path[root_node_feat] = observation
             leaf_node.parent_path.update(root_node.parent_path)
-            root_node.children[feat] = leaf_node
+            root_node.children[observation] = leaf_node
 
     def fit(self, X: pd.DataFrame, y: pd.Series) -> None:
         """
@@ -321,6 +323,7 @@ class ID3DecisionTree:
 
     def transform(self):
         pass
+
 
 class Node:
     def __init__(self, value=None, feature=None):
