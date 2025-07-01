@@ -20,6 +20,6 @@ The only implemented algorithm is the ID3 algorithm for a categorical target and
 
 ## Constraints
 
-Besides the constraint of only using "basic" numerical computation libraries, it's *NOT* allowed to use LLMs or similar tools to write the algorithms. If needed, it's allowed to ask for very small snippets of code (for example, how to do X thing in pandas) and to write/format docstrings, never to write complete sections of the algorithms. Besides that, this code must stray free of AI, only the raw man-made code is permitted ;)!
+Besides the constraint of only using "basic" numerical computation libraries, it's **NOT** allowed to use LLMs or similar tools to write the algorithms. If needed, it's allowed to ask for very small snippets of code (for example, how to do X thing in pandas) and to write/format docstrings, never to write complete sections of the algorithms. Besides that, this code must stray free of AI, only the raw man-made code is permitted ;)!
 
 Since this code is written for learning/educational/recreative purposes, I will try to keep it as understandable as possible. Readability is more important than performance. If you would like to improve some of the algorithms, just open an Issue! 
