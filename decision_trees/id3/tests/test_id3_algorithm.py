@@ -1,6 +1,6 @@
 import pandas as pd
 
-from id3.id3_classifier import ID3Classifier, Node
+from id3_classifier import ID3Classifier
 
 test_tree = ID3Classifier()
 
