@@ -53,8 +53,8 @@ class TestID3Classifier:
             try:
                 predicted_output = test_tree.predict(X_test)
                 assert y_test == predicted_output
-            except KeyError:
-                assert error
+            except KeyError as e:
+                assert error, e
 
     def test_compute_best_feature(self):
         for train, test, error in self.INPUT_OUTPUT_ERROR_DFS:
