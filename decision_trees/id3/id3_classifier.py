@@ -291,12 +291,15 @@ class ID3Classifier:
         node_feat = node.feature
         node_feat_name = x[node_feat]
         while True:
-            node = node.children[node_feat_name]
+            try:
+                node = node.children[node_feat_name]
+            except KeyError:
+                raise KeyError(f'{node_feat_name} is not a children of {node}!')
             if node.value:
                 return node.value
             node_feat_name = x[node.feature]
 
-    def predict(self, X):
+    def predict(self, X: pd.DataFrame) -> list:
         """
         Predicts target values for a given dataset using the fitted decision tree.
 

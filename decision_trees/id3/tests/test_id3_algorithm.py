@@ -4,32 +4,63 @@ from id3_classifier import ID3Classifier
 
 test_tree = ID3Classifier()
 
-def create_dataset():
-    data = {
-        "Outlook": ["Sunny", "Sunny", "Overcast", "Rain", "Rain", "Rain", "Overcast", "Sunny", "Sunny", "Rain", "Sunny", "Overcast", "Overcast", "Rain"],
-        "Temperature": ["Hot", "Hot", "Hot", "Mild", "Cool", "Cool", "Cool", "Mild", "Cool", "Mild", "Mild", "Mild", "Hot", "Mild"],
-        "Humidity": ["High", "High", "High", "High", "Normal", "Normal", "Normal", "High", "Normal", "Normal", "Normal", "High", "Normal", "High"],
-        "Wind": ["Weak", "Strong", "Weak", "Weak", "Weak", "Strong", "Strong", "Weak", "Weak", "Weak", "Strong", "Strong", "Weak", "Strong"],
-        "Play": ["No", "No", "Yes", "Yes", "Yes", "No", "Yes", "No", "Yes", "Yes", "Yes", "Yes", "Yes", "No"]
-    }
+class TestID3Classifier:
 
-    data_test = {
-        "Outlook": ["Sunny", "Rain"],
-        "Temperature": ["Hot", "Mild"],
-        "Humidity": ["High", "High"], # "High", "High", "Normal", "Normal", "Normal", "High", "Normal", "Normal", "Normal", "High", "Normal", "High"],
-        "Wind": ["Weak", "Strong"], #, "Weak", "Weak", "Weak", "Strong", "Strong", "Weak", "Weak", "Weak", "Strong", "Strong", "Weak", "Strong"],
-        "Play": ["No", "Yes"]
-    }
+    INPUT_OUTPUT_ERROR_DFS = [
+        (
+            pd.DataFrame({
+                "Outlook": ["Sunny", "Sunny", "Overcast", "Rain", "Rain", "Rain", "Overcast", "Sunny", "Sunny", "Rain", "Sunny", "Overcast", "Overcast", "Rain"],
+                "Temperature": ["Hot", "Hot", "Hot", "Mild", "Cool", "Cool", "Cool", "Mild", "Cool", "Mild", "Mild", "Mild", "Hot", "Mild"],
+                "Humidity": ["High", "High", "High", "High", "Normal", "Normal", "Normal", "High", "Normal", "Normal", "Normal", "High", "Normal", "High"],
+                "Wind": ["Weak", "Strong", "Weak", "Weak", "Weak", "Strong", "Strong", "Weak", "Weak", "Weak", "Strong", "Strong", "Weak", "Strong"],
+                "Play": ["No", "No", "Yes", "Yes", "Yes", "No", "Yes", "No", "Yes", "Yes", "Yes", "Yes", "Yes", "No"]
+            }),
+            pd.DataFrame({
+                "Outlook": ["Sunny", "Rain"],
+                "Temperature": ["Hot", "Mild"],
+                "Humidity": ["High", "High"],
+                "Wind": ["Weak", "Strong"],
+                "Play": ["No", "No"]
+            }),
+            False
+        ),
+        (
+            pd.DataFrame({
+                "Outlook": ["Overcast", "Rain", "Rain", "Rain", "Overcast", "Sunny", "Sunny", "Rain"],
+                "Temperature": ["Hot", "Mild", "Cool", "Cool", "Cool", "Mild", "Cool", "Mild"],
+                "Humidity": ["High", "High", "Normal", "Normal", "Normal", "High", "Normal", "Normal"],
+                "Wind": ["Weak", "Weak", "Weak", "Strong", "Strong", "Weak", "Weak", "Weak"],
+                "Play": ["Yes", "Yes", "Yes", "No", "Yes", "No", "Yes", "Yes"]
+            }),
+            pd.DataFrame({
+                "Outlook": ["Sunny", "Rain"],
+                "Temperature": ["Hot", "Mild"],
+                "Humidity": ["High", "High"],
+                "Wind": ["Weak", "Strong"],
+                "Play": ["No", "Yes"]
+            }),
+            True
+        ),
+    ]
 
-    return pd.DataFrame(data), pd.DataFrame(data_test)
+    def test_id3_classifier(self):
+        for train, test, error in self.INPUT_OUTPUT_ERROR_DFS:
+            X_train, y_train = train.drop(['Play'], axis=1), train['Play']
+            X_test, y_test = test.drop(['Play'], axis=1), test['Play'].to_list()
 
+            test_tree = ID3Classifier()
+            test_tree.fit(X_train, y_train)
+            try:
+                predicted_output = test_tree.predict(X_test)
+                assert y_test == predicted_output
+            except KeyError:
+                assert error
 
+    def test_compute_best_feature(self):
+        for train, test, error in self.INPUT_OUTPUT_ERROR_DFS:
+            X_train, y_train = train.drop(['Play'], axis=1), train['Play']
 
-def test_compute_best_feature():
-    df_train, df_test = create_dataset()
-    X_train, y_train = df_train.drop(['Play'], axis=1), df_train['Play']
+            test_output = test_tree._compute_best_feature(X_train, y_train)
+            expected_output = 'Outlook'
 
-    test_output = test_tree._compute_best_feature(X_train, y_train)
-    expected_output = 'Outlook'
-
-    assert test_output == expected_output
+            assert test_output == expected_output
