@@ -1,11 +1,13 @@
 import numpy as np
 import pandas as pd
 
-class ID3Classifier:
+from decision_trees.base_tree import BaseTree
+
+
+class ID3Classifier(BaseTree):
     def __init__(self, impurity_criterion='entropy'):
-        self.tree = None
+        super().__init__()
         self.impurity_criterion = impurity_criterion
-        self.leaf_nodes = []
 
     def _compute_feature_information_gain(self, X: pd.DataFrame, y: pd.Series, feat: str, sample_size: int, y_entropy: float) -> float:
         """
@@ -294,7 +296,7 @@ class ID3Classifier:
             try:
                 node = node.children[node_feat_name]
             except KeyError:
-                raise KeyError(f'{node_feat_name} is not a children of {node}!')
+                raise KeyError(f'{node_feat_name} is not a known observation of {node}!')
             if node.value:
                 return node.value
             node_feat_name = x[node.feature]
@@ -369,4 +371,5 @@ if __name__ == '__main__':
 
     tree = ID3Classifier()
     tree.fit(X_train, y_train)
+    tree.visualize_tree()
     pred = tree.predict(X_test)
