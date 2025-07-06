@@ -1,10 +1,12 @@
-import matplotlib
-matplotlib.use('tkagg')  # Switch to an interactive backend
-
-import graphviz
-from PIL import Image
-import matplotlib.pyplot as plt
 from io import BytesIO
+
+import matplotlib
+matplotlib.use('TkAgg')
+import matplotlib.pyplot as plt
+
+from graphviz import Digraph
+from PIL import Image
+
 
 class BaseTree:
     def __init__(self):
@@ -24,7 +26,7 @@ class BaseTree:
     def visualize_tree(self):
         assert self.tree is not None, "Cannot graph tree, as it is not fitted!"
 
-        decision_tree = graphviz.Digraph('Tree', comment='Tree', engine='dot')
+        decision_tree = Digraph('Tree', comment='Tree', engine='dot')
         decision_tree.attr(rankdir='TB')
         decision_tree.attr(splines='false')
         decision_tree.attr(nodesep='1')
