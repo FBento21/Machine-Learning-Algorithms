@@ -14,7 +14,22 @@ class BaseTree:
         self.leaf_nodes = []
 
     @staticmethod
-    def _render_tree(decision_tree):
+    def _render_tree(decision_tree: Digraph) -> None:
+        """
+        Renders a decision tree diagram from a Graphviz Digraph object.
+
+        The method generates a PNG image of the tree and displays it inline using matplotlib.
+
+        Parameters:
+        ----------
+        decision_tree : Digraph
+            A Graphviz Digraph object representing the decision tree structure.
+
+        Returns:
+        -------
+        None
+        """
+
         # Render to bytes in memory
         img_bytes = decision_tree.pipe(format='png')
         image = Image.open(BytesIO(img_bytes))
@@ -23,7 +38,24 @@ class BaseTree:
         plt.axis('off')
         plt.show()
 
-    def visualize_tree(self):
+    def visualize_tree(self) -> None:
+        """
+        Visualizes the tree structure using Graphviz and matplotlib.
+
+        This method creates a visual representation of the fitted tree, where each node is
+        labeled with its feature or predicted value. It uses a breadth-first search traversal
+        to render the nodes and edges level-by-level.
+
+        Raises:
+        ------
+        AssertionError:
+            If the tree has not been fitted (i.e., self.tree is None).
+
+        Returns:
+        -------
+        None
+        """
+
         assert self.tree is not None, "Cannot graph tree, as it is not fitted!"
 
         decision_tree = Digraph('Tree', comment='Tree', engine='dot')

@@ -193,6 +193,10 @@ class ID3Classifier(BaseTree):
             - Appends internal nodes to the provided `queue` for further processing.
             - Updates the `parent_path` attribute of each created node to track its decision path.
 
+        Returns:
+        -------
+        None
+
         Note:
             Assumes the `Node` object has attributes `feature`, `value`, `children`, and `parent_path`.
         """
@@ -280,7 +284,7 @@ class ID3Classifier(BaseTree):
 
         Returns:
         -------
-        str :
+        Node :
             The predicted target value stored in the reached leaf node.
 
         Assumes:
