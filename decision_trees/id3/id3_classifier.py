@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 
 from decision_trees.base_tree import BaseTree
+from utils.utils import logger
 
 
 class ID3Classifier(BaseTree):
@@ -222,7 +223,8 @@ class ID3Classifier(BaseTree):
             # Create a new node using the best feature
             else:
                 leaf_node_feat = self._compute_best_feature(conditional_X, conditional_y)
-                leaf_node = Node(feature=leaf_node_feat)
+                default_value = conditional_y.mode()[0]
+                leaf_node = Node(feature=leaf_node_feat, value= default_value)
                 visited_nodes.append(leaf_node_feat)
                 queue.append(leaf_node)  # Append the new node (stump's leaf node) to the end of the queue
 
@@ -275,7 +277,9 @@ class ID3Classifier(BaseTree):
 
         Starting from the root node, this method follows the decision path defined by the
         feature values in the input sample `x`, descending through the tree until it reaches
-        a leaf node. The prediction is the value stored in that leaf node.
+        a leaf node. If the input observation is not known, defaults to the most common output value
+        in the decision path.
+        The prediction is the value stored in that leaf node.
 
         Parameters:
         ----------
@@ -297,11 +301,14 @@ class ID3Classifier(BaseTree):
         node_feat = node.feature
         node_feat_name = x[node_feat]
         while True:
-            try:
-                node = node.children[node_feat_name]
-            except KeyError:
-                raise KeyError(f'{node_feat_name} is not a known observation of {node}!')
-            if node.value:
+            node_ = node.children.get(node_feat_name)
+            if node_:
+                node = node_
+            else:
+                logger.warning(f'{node_feat_name} is not a known observation of {node}! Defaulting to {node.value}.')
+                return node.value
+
+            if node.feature is None:
                 return node.value
             node_feat_name = x[node.feature]
 
@@ -342,10 +349,10 @@ class Node:
         self.parent_path = {}
 
     def __repr__(self):
-        if self.value:
-            return f'Node(value={self.value})'
+        if self.feature:
+            return f'Node(feature={self.feature}, value={self.value})'
         else:
-            return f'Node(feature={self.feature})'
+            return f'Node(value={self.value})'
 
 
 if __name__ == '__main__':

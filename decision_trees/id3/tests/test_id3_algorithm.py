@@ -1,6 +1,6 @@
 import pandas as pd
 
-from id3_classifier import ID3Classifier
+from decision_trees.id3.id3_classifier import ID3Classifier
 
 test_tree = ID3Classifier()
 
@@ -21,8 +21,7 @@ class TestID3Classifier:
                 "Humidity": ["High", "High"],
                 "Wind": ["Weak", "Strong"],
                 "Play": ["No", "No"]
-            }),
-            False
+            })
         ),
         (
             pd.DataFrame({
@@ -37,27 +36,23 @@ class TestID3Classifier:
                 "Temperature": ["Hot", "Mild"],
                 "Humidity": ["High", "High"],
                 "Wind": ["Weak", "Strong"],
-                "Play": ["No", "Yes"]
-            }),
-            True
+                "Play": ["No", "No"]
+            })
         ),
     ]
 
     def test_id3_classifier(self):
-        for train, test, error in self.INPUT_OUTPUT_ERROR_DFS:
+        for train, test in self.INPUT_OUTPUT_ERROR_DFS:
             X_train, y_train = train.drop(['Play'], axis=1), train['Play']
             X_test, y_test = test.drop(['Play'], axis=1), test['Play'].to_list()
 
-            test_tree = ID3Classifier()
             test_tree.fit(X_train, y_train)
-            try:
-                predicted_output = test_tree.predict(X_test)
-                assert y_test == predicted_output
-            except KeyError as e:
-                assert error, e
+            predicted_output = test_tree.predict(X_test)
+
+            assert predicted_output == y_test
 
     def test_compute_best_feature(self):
-        for train, test, error in self.INPUT_OUTPUT_ERROR_DFS:
+        for train, test in self.INPUT_OUTPUT_ERROR_DFS:
             X_train, y_train = train.drop(['Play'], axis=1), train['Play']
 
             test_output = test_tree._compute_best_feature(X_train, y_train)
