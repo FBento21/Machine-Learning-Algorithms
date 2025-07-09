@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 
 from decision_trees.base_tree import BaseTree
+from decision_trees.base_node import Node
 from utils.utils import logger
 
 
@@ -168,7 +169,7 @@ class ID3Classifier(BaseTree):
 
         return X_filtered, y_filtered
 
-    def _fit_stump(self, X: pd.DataFrame, y: pd.Series, root_node: 'Node', queue: list) -> None:
+    def _fit_stump(self, X: pd.DataFrame, y: pd.Series, root_node: Node, queue: list) -> None:
         """
         Fits a one-level decision tree (stump) starting from the given root node.
 
@@ -271,7 +272,7 @@ class ID3Classifier(BaseTree):
             # Fit a stump with root_node = node
             self._fit_stump(X_filtered, y_filtered, node, queue)
 
-    def _predict_one_sample(self, x: pd.Series) -> 'Node':
+    def _predict_one_sample(self, x: pd.Series) -> str:
         """
         Predicts the target value for a single sample by traversing the decision tree.
 
@@ -288,7 +289,7 @@ class ID3Classifier(BaseTree):
 
         Returns:
         -------
-        Node :
+        str :
             The predicted target value stored in the reached leaf node.
 
         Assumes:
@@ -339,20 +340,6 @@ class ID3Classifier(BaseTree):
 
     def transform(self):
         pass
-
-
-class Node:
-    def __init__(self, value=None, feature=None):
-        self.value = value
-        self.feature = feature
-        self.children = {}
-        self.parent_path = {}
-
-    def __repr__(self):
-        if self.feature:
-            return f'Node(feature={self.feature}, value={self.value})'
-        else:
-            return f'Node(value={self.value})'
 
 
 if __name__ == '__main__':
