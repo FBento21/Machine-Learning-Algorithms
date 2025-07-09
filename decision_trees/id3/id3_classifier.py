@@ -1,3 +1,5 @@
+from typing import Union
+
 import numpy as np
 import pandas as pd
 
@@ -11,14 +13,14 @@ class ID3Classifier(BaseTree):
         super().__init__()
         self.impurity_criterion = impurity_criterion
 
-    def _compute_feature_information_gain(self, X: pd.DataFrame, y: pd.Series, feat: str, sample_size: int, y_entropy: float) -> float:
+    def _compute_feature_information_gain(self, X: pd.Series, y: pd.Series, sample_size: int, y_entropy: float) -> float:
         """
         Compute the information gain for a given feature.
 
         Parameters:
         ----------
-        X : pd.DataFrame
-            The input features.
+        X : pd.Series
+            Observations of a given feature.
         y : pd.Series or pd.DataFrame
             The target variable(s).
         feat : str
@@ -39,7 +41,7 @@ class ID3Classifier(BaseTree):
         """
 
         if self.impurity_criterion == 'entropy':
-            impurity =  self._compute_feature_entropy(X, y, feat, sample_size)
+            impurity =  self._compute_feature_entropy(X, y, sample_size)
         else:
             raise NotImplementedError(f'Impurity Criterion {self.impurity_criterion} not Implemented!')
 
@@ -74,14 +76,14 @@ class ID3Classifier(BaseTree):
 
         return impurity
 
-    def _compute_feature_entropy(self, X: pd.DataFrame, y: pd.Series, feat: str, sample_size: int) -> float:
+    def _compute_feature_entropy(self, X: pd.Series, y: pd.Series, sample_size: int) -> float:
         """
         Compute the entropy for a given feature.
 
         Parameters:
         ----------
-        X : pd.DataFrame
-            The input features.
+        X : pd.Series
+            Observations of a given feature.
         y : pd.Series or pd.DataFrame
             The target variable(s).
         feat : str
@@ -96,15 +98,30 @@ class ID3Classifier(BaseTree):
         """
 
         entropy = 0
-        feature_observations = X[feat].unique()
+        feature_observations = X.unique()
         for observation in feature_observations:
-            y_filtered_by_feat_obs = y[X[feat].isin([observation])]
+            y_filtered_by_feat_obs = y[X.isin([observation])]
             y_filtered_by_feat_obs_entropy = self._compute_target_impurity(y_filtered_by_feat_obs)
-            proba_weight = X[feat].value_counts()[observation] / sample_size
+            proba_weight = X.value_counts()[observation] / sample_size
             entropy += proba_weight * y_filtered_by_feat_obs_entropy
         return entropy
 
-    def _compute_best_feature(self, X: pd.DataFrame, y: pd.Series) -> str:
+    def _handle_continuous_features(self, X: pd.Series, y: pd.Series, sample_size: len, y_impurity: float) -> tuple[float, float]:
+        feat_sorted_values = X.sort_values().values
+        possible_split_points = (feat_sorted_values[1:] + feat_sorted_values[:-1]) / 2
+
+        best_split_point = np.nan
+        best_split_point_information_gain = -np.inf
+        for split_point in possible_split_points:
+            X_feature_splitted = (X <= split_point).astype(str)
+            information_gain_on_split = self._compute_feature_information_gain(X_feature_splitted, y, sample_size, y_impurity)
+            if information_gain_on_split > best_split_point_information_gain:
+                best_split_point_information_gain = information_gain_on_split
+                best_split_point = split_point
+
+        return  best_split_point_information_gain, best_split_point
+
+    def _compute_best_feature(self, X: pd.DataFrame, y: pd.Series) -> tuple[str, Union[float, None]]:
         """
         Determines the best feature to split on by computing each feature information gain based on the
         impurity_criterion.
@@ -123,21 +140,35 @@ class ID3Classifier(BaseTree):
         -------
         best_feature : str
             The name of the feature with the lowest impurity.
+        best_split_point : Union[float, None]
+            Best split point floating number if best_feature is continuous else None
         """
 
         sample_size = len(y)
         y_impurity = self._compute_target_impurity(y)
 
-        information_gain = {}
+        information_gain_split = {}
         for feature in X.columns:
-            information_gain[feature] = self._compute_feature_information_gain(X, y, feature, sample_size, y_impurity)
+            if feature in self.numerical_features:
+                best_split_point_information_gain, best_split_point = self._handle_continuous_features(X[feature], y, sample_size, y_impurity)
+
+                information_gain_split[feature] = {'information_gain': best_split_point_information_gain,
+                                                   'best_split_point': best_split_point}
+
+            else:
+                information_gain_split[feature] = {'information_gain': self._compute_feature_information_gain(X[feature], y, sample_size, y_impurity),
+                                                   'best_split_point': None}
 
         # Get the key (feature) with the highest value (information gain)
-        best_feature = max(information_gain, key=information_gain.get)
-        return best_feature
+        best_feature = max(information_gain_split, key=lambda x: information_gain_split[x]['information_gain'])
+        return best_feature, information_gain_split[best_feature]['best_split_point']
 
     @staticmethod
-    def _filter_df_by_dict(X: pd.DataFrame, y: pd.Series, relations_dict: dict) -> tuple[pd.DataFrame, pd.Series]:
+    def _apply_continuous_filter(x, continuous_relations_dict):
+        # Continue here!
+        return True
+
+    def _filter_df_by_dict(self, X: pd.DataFrame, y: pd.Series, relations_dict: dict) -> tuple[pd.DataFrame, pd.Series]:
         """
         Filters rows in a DataFrame `X` and its corresponding labels `y` based on a dictionary of column-value pairs.
 
@@ -163,13 +194,15 @@ class ID3Classifier(BaseTree):
             The filtered target values corresponding to the retained rows in `X_filtered`.
         """
 
-        condition = (X[list(relations_dict)] == pd.Series(relations_dict)).all(axis=1)
-        X_filtered = X[condition].drop(relations_dict, axis=1)
+        categorical_relations_dict = {k: v for k,v in relations_dict.items() if k not in self.numerical_features}
+        condition = (X[list(categorical_relations_dict)] == pd.Series(categorical_relations_dict)).all(axis=1)
+        condition &= X.apply(self._apply_continuous_filter, axis=1, args=({k: v for k,v in relations_dict.items() if k in self.numerical_features},))
+        X_filtered = X[condition].drop(categorical_relations_dict, axis=1)
         y_filtered = y[condition]
 
         return X_filtered, y_filtered
 
-    def _fit_stump(self, X: pd.DataFrame, y: pd.Series, root_node: Node, queue: list) -> None:
+    def _fit_stump(self, X: pd.DataFrame, y: pd.Series, root_node: Node, queue: list, best_split_point: Union[float, None]) -> None:
         """
         Fits a one-level decision tree (stump) starting from the given root node.
 
@@ -204,11 +237,11 @@ class ID3Classifier(BaseTree):
         """
 
         root_node_feat = root_node.feature
-        visited_nodes = []
-        feature_observations = X[root_node_feat].unique()
+        visited_nodes = [root_node_feat] if best_split_point is None else []
+        feature_observations = X[root_node_feat].unique() if best_split_point is None else [True, False]
         # Loop over all the possible observations available for root_node_feat
         for observation in feature_observations:
-            condition = X[root_node_feat].isin([observation])
+            condition = X[root_node_feat].isin([observation]) if best_split_point is None else (X[root_node_feat] <= best_split_point).isin([observation])
             conditional_X = X[condition].drop(visited_nodes, axis=1)
             conditional_y = y[condition]
             # If target is pure (all values in conditional_y are the same), then create a leaf
@@ -223,16 +256,16 @@ class ID3Classifier(BaseTree):
                 self.leaf_nodes.append(leaf_node)
             # Create a new node using the best feature
             else:
-                leaf_node_feat = self._compute_best_feature(conditional_X, conditional_y)
+                leaf_node_feat, leaf_node_best_split_point = self._compute_best_feature(conditional_X, conditional_y)
                 default_value = conditional_y.mode()[0]
-                leaf_node = Node(feature=leaf_node_feat, value= default_value)
+                leaf_node = Node(feature=leaf_node_feat, value=default_value)
                 visited_nodes.append(leaf_node_feat)
                 queue.append(leaf_node)  # Append the new node (stump's leaf node) to the end of the queue
 
             # Update the path of the leaf node and save it as the children of root node
-            leaf_node.parent_path[root_node_feat] = observation
+            leaf_node.parent_path[root_node_feat] = observation if best_split_point is None else lambda x: x <= best_split_point if observation else x > best_split_point
             leaf_node.parent_path.update(root_node.parent_path)
-            root_node.children[observation] = leaf_node
+            root_node.children[observation if best_split_point is None else f'<= {best_split_point}' if observation else f'> {best_split_point}'] = leaf_node
 
     def fit(self, X: pd.DataFrame, y: pd.Series) -> None:
         """
@@ -255,11 +288,13 @@ class ID3Classifier(BaseTree):
         None
         """
 
+        self.get_df_dtypes(X)
+
         X_ = X.copy()
         y_ = y.copy()
 
         # Create root node
-        node_feat = self._compute_best_feature(X, y)
+        node_feat, best_split_point = self._compute_best_feature(X, y)
         self.tree = Node(feature=node_feat)
 
         # We grow the three level-wise, resulting in a balanced tree
@@ -270,7 +305,7 @@ class ID3Classifier(BaseTree):
             # Filter the dataframe and target, using the path from root to the node
             X_filtered, y_filtered = self._filter_df_by_dict(X_, y_, node.parent_path)
             # Fit a stump with root_node = node
-            self._fit_stump(X_filtered, y_filtered, node, queue)
+            self._fit_stump(X_filtered, y_filtered, node, queue, best_split_point)
 
     def _predict_one_sample(self, x: pd.Series) -> str:
         """

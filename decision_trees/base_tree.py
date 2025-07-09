@@ -4,6 +4,8 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
+from pandas.api.types import is_numeric_dtype
+
 from graphviz import Digraph
 from PIL import Image
 
@@ -12,6 +14,7 @@ class BaseTree:
     def __init__(self):
         self.tree = None
         self.leaf_nodes = []
+        self.numerical_features = []
 
     @staticmethod
     def _render_tree(decision_tree: Digraph) -> None:
@@ -37,6 +40,9 @@ class BaseTree:
         plt.imshow(image)
         plt.axis('off')
         plt.show()
+
+    def get_df_dtypes(self, X):
+        self.numerical_features = [k for k, v in X.dtypes.to_dict().items() if is_numeric_dtype(v)]
 
     def visualize_tree(self) -> None:
         """

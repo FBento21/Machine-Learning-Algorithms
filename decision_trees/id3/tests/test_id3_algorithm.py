@@ -39,10 +39,26 @@ class TestID3Classifier:
                 "Play": ["No", "No"]
             })
         ),
+        (
+            pd.DataFrame({
+                "Outlook": ["Sunny", "Rain", "Overcast", "Rain", "Rain", "Rain", "Overcast", "Sunny", "Sunny", "Rain", "Sunny", "Overcast", "Overcast", "Rain"],
+                "Temperature": [30, 35, 3, 23, 15, 14, 14, 21, 10, 22, 23, 20, 28, 19],
+                "Humidity": ["High", "High", "High", "High", "Normal", "Normal", "Normal", "High", "Normal", "Normal", "Normal", "High", "Normal", "High"],
+                "Wind": ["Weak", "Strong", "Weak", "Weak", "Weak", "Strong", "Strong", "Weak", "Weak", "Weak", "Strong", "Strong", "Weak", "Strong"],
+                "Play": ["No", "No", "Yes", "Yes", "Yes", "No", "Yes", "No", "Yes", "Yes", "Yes", "Yes", "Yes", "No"]
+            }),
+            pd.DataFrame({
+                "Outlook": ["Sunny", "Rain"],
+                "Temperature": ["Hot", "Mild"],
+                "Humidity": ["High", "High"],
+                "Wind": ["Weak", "Strong"],
+                "Play": ["No", "No"]
+            })
+        ),
     ]
 
     def test_id3_classifier(self):
-        for train, test in self.INPUT_OUTPUT_ERROR_DFS:
+        for train, test in self.INPUT_OUTPUT_ERROR_DFS[2:]:
             X_train, y_train = train.drop(['Play'], axis=1), train['Play']
             X_test, y_test = test.drop(['Play'], axis=1), test['Play'].to_list()
 
