@@ -73,7 +73,7 @@ class ID3Classifier(BaseTree):
             log_probas = np.log2(probas)
             impurity = -sum(probas * log_probas)
         else:
-            raise NotImplementedError('Impurity Criterion {self.impurity_criterion} not Implemented!')
+            raise NotImplementedError(f'Impurity Criterion {self.impurity_criterion} not Implemented!')
 
         return impurity
 
