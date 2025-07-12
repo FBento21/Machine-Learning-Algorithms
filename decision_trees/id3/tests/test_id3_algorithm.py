@@ -91,7 +91,7 @@ class TestID3Classifier:
                 ),
                 pd.DataFrame({
                     "Outlook": ["Sunny", "Rain"],
-                    "Temperature": ["Hot", "Mild"],
+                    "Temperature": [32, 24],
                     "Humidity": ["High", "High"],
                     "Wind": ["Weak", "Strong"],
                     "Play": ["No", "No"]

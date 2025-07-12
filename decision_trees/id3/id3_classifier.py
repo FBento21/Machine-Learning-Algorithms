@@ -5,7 +5,7 @@ import pandas as pd
 
 from decision_trees.base_tree import BaseTree
 from decision_trees.base_node import Node
-from utils.utils import logger
+from utils.utils import *
 
 
 class ID3Classifier(BaseTree):
@@ -307,7 +307,9 @@ class ID3Classifier(BaseTree):
             leaf_node.parent_path[node_feat] = observation
             root_node.children[observation] = leaf_node
         else:
-            leaf_node.parent_path[node_feat] = lambda x: x <= root_node_split_point
+            relation = CustomLambda(lambda x: x <= root_node_split_point, f'<= {root_node_split_point}' if observation else f'> {root_node_split_point}')
+            leaf_node.parent_path[node_feat] = relation
+            root_node.split_point_relation = relation
             root_node.children[f'<= {root_node_split_point}' if observation else f'> {root_node_split_point}'] = leaf_node
         leaf_node.parent_path.update(root_node.parent_path)
 
@@ -431,18 +433,18 @@ class ID3Classifier(BaseTree):
 
         node = self.tree
         node_feat = node.feature
-        node_feat_name = x[node_feat]
+        observation = x[node_feat]
         while True:
-            node_ = node.children.get(node_feat_name)
+            node_ = node.children.get(observation) if node.split_point is None else node.children[repr(node.split_point_relation)]
             if node_:
                 node = node_
             else:
-                logger.warning(f'{node_feat_name} is not a known observation of {node}! Defaulting to {node.value}.')
+                logger.warning(f'{observation} is not a known observation of {node}! Defaulting to {node.value}.')
                 return node.value
 
             if node.feature is None:
                 return node.value
-            node_feat_name = x[node.feature]
+            observation = x[node.feature]
 
     def predict(self, X: pd.DataFrame) -> list:
         """
@@ -476,11 +478,14 @@ class ID3Classifier(BaseTree):
 if __name__ == '__main__':
     def create_dataset():
         data = {
-            "Outlook": ["Sunny", "Sunny", "Overcast", "Rain", "Rain", "Rain", "Overcast", "Sunny", "Sunny", "Rain", "Sunny", "Overcast", "Overcast", "Rain"],
-            "Temperature": ["Hot", "Hot", "Hot", "Mild", "Cool", "Cool", "Cool", "Mild", "Cool", "Mild", "Mild", "Mild", "Hot", "Mild"],
-            "Humidity": ["High", "High", "High", "High", "Normal", "Normal", "Normal", "High", "Normal", "Normal", "Normal", "High", "Normal", "High"],
-            "Wind": ["Weak", "Strong", "Weak", "Weak", "Weak", "Strong", "Strong", "Weak", "Weak", "Weak", "Strong", "Strong", "Weak", "Strong"],
-            "Play": ["No", "No", "Yes", "Yes", "Yes", "No", "Yes", "No", "Yes", "Yes", "Yes", "Yes", "Yes", "No"]
+             "Outlook": ["Sunny", "Rain", "Overcast", "Rain", "Rain", "Rain", "Overcast", "Sunny", "Sunny", "Rain",
+                         "Sunny", "Overcast", "Overcast", "Rain"],
+             "Temperature": [30, 35, 3, 23, 15, 14, 14, 21, 10, 22, 23, 20, 28, 19],
+             "Humidity": ["High", "High", "High", "High", "Normal", "Normal", "Normal", "High", "Normal", "Normal",
+                          "Normal", "High", "Normal", "High"],
+             "Wind": ["Weak", "Strong", "Weak", "Weak", "Weak", "Strong", "Strong", "Weak", "Weak", "Weak", "Strong",
+                      "Strong", "Weak", "Strong"],
+             "Play": ["No", "No", "Yes", "Yes", "Yes", "No", "Yes", "No", "Yes", "Yes", "Yes", "Yes", "Yes", "No"]
         }
 
         data_test = {
@@ -498,7 +503,7 @@ if __name__ == '__main__':
     X_train, y_train = df_train.drop(['Play'], axis=1), df_train['Play']
     X_test, y_test = df_test.drop(['Play'], axis=1), df_test['Play']
 
-    tree = ID3Classifier()
+    tree = ID3Classifier(numerical_features=('Temperature',))
     tree.fit(X_train, y_train)
     tree.visualize_tree()
-    pred = tree.predict(X_test)
+    # pred = tree.predict(X_test)
