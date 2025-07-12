@@ -14,7 +14,6 @@ class BaseTree:
     def __init__(self):
         self.tree = None
         self.leaf_nodes = []
-        self.numerical_features = []
 
     @staticmethod
     def _render_tree(decision_tree: Digraph) -> None:
@@ -40,9 +39,6 @@ class BaseTree:
         plt.imshow(image)
         plt.axis('off')
         plt.show()
-
-    def get_df_dtypes(self, X):
-        self.numerical_features = [k for k, v in X.dtypes.to_dict().items() if is_numeric_dtype(v)]
 
     def visualize_tree(self) -> None:
         """

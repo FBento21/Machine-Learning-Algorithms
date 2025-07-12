@@ -9,8 +9,9 @@ from utils.utils import logger
 
 
 class ID3Classifier(BaseTree):
-    def __init__(self, impurity_criterion='entropy'):
+    def __init__(self, numerical_features=(), impurity_criterion='entropy'):
         super().__init__()
+        self.numerical_features = numerical_features
         self.impurity_criterion = impurity_criterion
 
     def _compute_feature_information_gain(self, X: pd.Series, y: pd.Series, sample_size: int, y_entropy: float) -> float:
@@ -166,7 +167,9 @@ class ID3Classifier(BaseTree):
     @staticmethod
     def _apply_continuous_filter(x, continuous_relations_dict):
         # Continue here!
-        return True
+        if not continuous_relations_dict:
+            return True
+        return all(v(x[k]) for k, v in continuous_relations_dict.items())
 
     def _filter_df_by_dict(self, X: pd.DataFrame, y: pd.Series, relations_dict: dict) -> tuple[pd.DataFrame, pd.Series]:
         """
@@ -202,7 +205,113 @@ class ID3Classifier(BaseTree):
 
         return X_filtered, y_filtered
 
-    def _fit_stump(self, X: pd.DataFrame, y: pd.Series, root_node: Node, queue: list, best_split_point: Union[float, None]) -> None:
+    @staticmethod
+    def _get_feat_observations_visited_nodes(X: pd.DataFrame, node_feat: str, split_point: Union[float, None]) -> tuple:
+        """
+        Determines the observations and visited nodes for a given feature in a decision tree.
+
+        Parameters:
+        ----------
+        X : pd.DataFrame
+            The input dataset containing feature values.
+        node_feat : str
+            The feature at the root node of the current subtree.
+        split_point : float or None
+            The split point value for the feature. If None, the feature is categorical.
+
+        Returns:
+        -------
+        visited_nodes : list
+            A list of features (or nodes) that have been visited. Contains the root feature if the
+            feature is categorical, otherwise empty.
+        feature_observations : list or tuple
+            The unique values of the feature if it is categorical, otherwise (True, False).
+        """
+
+        if split_point is None:
+            visited_nodes = [node_feat]
+            feature_observations = X[node_feat].unique()
+        else:
+            visited_nodes = []
+            feature_observations = (True, False)
+
+        return visited_nodes, feature_observations
+
+    @staticmethod
+    def _get_conditional_X_y(X: pd.DataFrame, y: pd.Series, split_point: Union[float, None], node_feat: str, observation: str, visited_nodes: list) -> tuple:
+        """
+        Filters the dataset based on the current observation at a node in the decision tree.
+
+        Parameters:
+        ----------
+        X : pd.DataFrame
+            The input features.
+        y : pd.Series or pd.DataFrame
+            The target variable(s).
+        split_point : float or None
+            The split value for the feature at the current node. If None, the feature is considered
+            categorical.
+        node_feat : str
+            The name or index of the feature at the current node.
+        observation : any
+            The observed value used for conditioning the data.
+        visited_nodes : list
+            A list of feature names or indices that have already been visited and should be excluded
+            from the resulting dataset.
+
+        Returns:
+        -------
+        conditional_X : pd.DataFrame
+            The subset of `X` filtered based on the current node’s condition and with visited
+            features dropped.
+        conditional_y : pd.Series or pd.DataFrame
+            The subset of `y` corresponding to the filtered rows of `X`.
+        """
+
+        if split_point is None:
+            condition = X[node_feat].isin([observation])
+        else:
+            condition = (X[node_feat] <= split_point).isin([observation])
+
+        conditional_X = X[condition].drop(visited_nodes, axis=1)
+        conditional_y = y[condition]
+
+        return conditional_X, conditional_y
+
+    @staticmethod
+    def _update_root_and_leaf_nodes(root_node: 'Node', node_feat: str, root_node_split_point: Union[float, None], leaf_node: 'Node', observation: str) -> None:
+        """
+        Updates the parent and child relationships between a root node and a new leaf node.
+
+        Parameters:
+        ----------
+        root_node : Node
+            The current root node from which the leaf is derived.
+        node_feat : str
+            The feature used for splitting at the root node.
+        root_node_split_point : float or None
+            The split threshold if the feature is continuous. If None, the feature is treated as
+            categorical.
+        leaf_node : Node
+            The new leaf node to be connected as a child of the root.
+        observation : any
+            The observed feature value or condition result (True/False) used to determine the path
+            from the root to the leaf.
+
+        Returns:
+        -------
+        None
+        """
+
+        if root_node_split_point is None:
+            leaf_node.parent_path[node_feat] = observation
+            root_node.children[observation] = leaf_node
+        else:
+            leaf_node.parent_path[node_feat] = lambda x: x <= root_node_split_point
+            root_node.children[f'<= {root_node_split_point}' if observation else f'> {root_node_split_point}'] = leaf_node
+        leaf_node.parent_path.update(root_node.parent_path)
+
+    def _fit_stump(self, X: pd.DataFrame, y: pd.Series, root_node: Node, queue: list) -> None:
         """
         Fits a one-level decision tree (stump) starting from the given root node.
 
@@ -231,19 +340,16 @@ class ID3Classifier(BaseTree):
         Returns:
         -------
         None
-
-        Note:
-            Assumes the `Node` object has attributes `feature`, `value`, `children`, and `parent_path`.
         """
 
         root_node_feat = root_node.feature
-        visited_nodes = [root_node_feat] if best_split_point is None else []
-        feature_observations = X[root_node_feat].unique() if best_split_point is None else [True, False]
+        root_node_split_point = root_node.split_point
+        visited_nodes, feature_observations = self._get_feat_observations_visited_nodes(X, root_node_feat, root_node_split_point)
+
         # Loop over all the possible observations available for root_node_feat
         for observation in feature_observations:
-            condition = X[root_node_feat].isin([observation]) if best_split_point is None else (X[root_node_feat] <= best_split_point).isin([observation])
-            conditional_X = X[condition].drop(visited_nodes, axis=1)
-            conditional_y = y[condition]
+            conditional_X, conditional_y = self._get_conditional_X_y(X, y, root_node_split_point, root_node_feat, observation, visited_nodes)
+
             # If target is pure (all values in conditional_y are the same), then create a leaf
             if conditional_y.nunique() == 1:
                 value = conditional_y.unique()[0]
@@ -258,14 +364,12 @@ class ID3Classifier(BaseTree):
             else:
                 leaf_node_feat, leaf_node_best_split_point = self._compute_best_feature(conditional_X, conditional_y)
                 default_value = conditional_y.mode()[0]
-                leaf_node = Node(feature=leaf_node_feat, value=default_value)
+                leaf_node = Node(feature=leaf_node_feat, value=default_value, split_point=leaf_node_best_split_point)
                 visited_nodes.append(leaf_node_feat)
                 queue.append(leaf_node)  # Append the new node (stump's leaf node) to the end of the queue
 
             # Update the path of the leaf node and save it as the children of root node
-            leaf_node.parent_path[root_node_feat] = observation if best_split_point is None else lambda x: x <= best_split_point if observation else x > best_split_point
-            leaf_node.parent_path.update(root_node.parent_path)
-            root_node.children[observation if best_split_point is None else f'<= {best_split_point}' if observation else f'> {best_split_point}'] = leaf_node
+            self._update_root_and_leaf_nodes(root_node, root_node_feat, root_node_split_point, leaf_node, observation)
 
     def fit(self, X: pd.DataFrame, y: pd.Series) -> None:
         """
@@ -288,24 +392,21 @@ class ID3Classifier(BaseTree):
         None
         """
 
-        self.get_df_dtypes(X)
-
         X_ = X.copy()
         y_ = y.copy()
 
         # Create root node
         node_feat, best_split_point = self._compute_best_feature(X, y)
-        self.tree = Node(feature=node_feat)
+        self.tree = Node(feature=node_feat, split_point=best_split_point)
 
-        # We grow the three level-wise, resulting in a balanced tree
-        # We do this by creating a queue (First In First Out)
+        # We grow the three level-wise
         queue = [self.tree]
         while queue:
             node = queue.pop(0)
             # Filter the dataframe and target, using the path from root to the node
             X_filtered, y_filtered = self._filter_df_by_dict(X_, y_, node.parent_path)
             # Fit a stump with root_node = node
-            self._fit_stump(X_filtered, y_filtered, node, queue, best_split_point)
+            self._fit_stump(X_filtered, y_filtered, node, queue)
 
     def _predict_one_sample(self, x: pd.Series) -> str:
         """
@@ -326,11 +427,6 @@ class ID3Classifier(BaseTree):
         -------
         str :
             The predicted target value stored in the reached leaf node.
-
-        Assumes:
-            - `self.tree` is the root node of a decision tree with properly populated `children`.
-            - Each node has attributes `feature`, `children`, and `value`.
-            - The traversal ends when a node with a non-None `value` is encountered (i.e., a leaf).
         """
 
         node = self.tree
