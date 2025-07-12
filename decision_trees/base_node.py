@@ -1,9 +1,11 @@
 class Node:
-    def __init__(self, value=None, feature=None):
+    def __init__(self, value=None, feature=None, split_point=None):
         self.value = value
         self.feature = feature
         self.children = {}
         self.parent_path = {}
+        self.split_point = split_point
+        self.split_point_relation = None
 
     def __repr__(self):
         if self.feature:
