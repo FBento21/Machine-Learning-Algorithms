@@ -4,8 +4,6 @@ import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 
-from pandas.api.types import is_numeric_dtype
-
 from graphviz import Digraph
 from PIL import Image
 
