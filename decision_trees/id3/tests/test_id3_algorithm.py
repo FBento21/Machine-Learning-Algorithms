@@ -77,7 +77,7 @@ class TestID3Classifier:
         [
             (
                 (
-                    ('Temperature',),
+                    ['Temperature'],
                     pd.DataFrame({
                     "Outlook": ["Sunny", "Rain", "Overcast", "Rain", "Rain", "Rain", "Overcast", "Sunny", "Sunny", "Rain",
                                 "Sunny", "Overcast", "Overcast", "Rain"],
