@@ -9,12 +9,9 @@ from utils.utils import *
 
 
 class ID3Classifier(BaseTree):
-    def __init__(self, numerical_features=None, impurity_criterion='entropy'):
+    def __init__(self, numerical_features=(), impurity_criterion='entropy'):
         super().__init__()
-        if numerical_features is None:
-            numerical_features = []
         self.numerical_features = numerical_features
-        self.categorical_features = []
         self.impurity_criterion = impurity_criterion
 
     def _compute_feature_information_gain(self, X: pd.Series, y: pd.Series, sample_size: int, y_entropy: float) -> float:
@@ -215,7 +212,7 @@ class ID3Classifier(BaseTree):
         """
 
         condition = X.apply(self._filter_one_by_dict, axis=1, args=(relations_dict,))
-        X_filtered = X[condition].drop(self.categorical_features, axis=1)
+        X_filtered = X[condition].drop(list(set(relations_dict) - set(self.numerical_features)), axis=1)
         y_filtered = y[condition]
 
         return X_filtered, y_filtered
