@@ -9,12 +9,11 @@ from utils.utils import *
 
 
 class ID3Classifier(BaseTree):
-    def __init__(self, numerical_features=(), impurity_criterion='entropy'):
-        super().__init__()
-        self.numerical_features = numerical_features
+    def __init__(self, numerical_features=(), impurity_criterion='entropy', task='classification'):
+        super().__init__(numerical_features, task=task)
         self.impurity_criterion = impurity_criterion
 
-    def _compute_feature_information_gain(self, X: pd.Series, y: pd.Series, sample_size: int, y_entropy: float) -> float:
+    def _compute_feature_information_gain(self, X: pd.Series, y: pd.Series, sample_size: int, y_impurity: float) -> float:
         """
         Compute the information gain for a given feature.
 
@@ -28,7 +27,7 @@ class ID3Classifier(BaseTree):
             Feature for which to compute information gain.
         sample_size : int
             Number of samples to consider from X and y.
-        y_entropy : float
+        y_impurity : float
             Entropy of the current node (before the split).
 
         Returns:
@@ -46,7 +45,7 @@ class ID3Classifier(BaseTree):
         else:
             raise NotImplementedError(f'Impurity Criterion {self.impurity_criterion} not Implemented!')
 
-        information_gain = y_entropy - impurity
+        information_gain = y_impurity - impurity
         return information_gain
 
     def _compute_target_impurity(self, y: pd.Series) -> float:
@@ -299,7 +298,7 @@ class ID3Classifier(BaseTree):
             filter_relation = CustomLambda(lambda x: x == observation, observation)
         else:
             repr_ = f'<= {root_node_split_point}' if observation else f'> {root_node_split_point}'
-            filter_relation = CustomLambda(lambda x: x <= root_node_split_point, repr_)
+            filter_relation = CustomLambda(lambda x: x <= root_node_split_point if observation else x > root_node_split_point, repr_)
 
         root_node.children[repr_] = leaf_node
         leaf_node.parent_path[root_node_feat] = filter_relation
@@ -350,13 +349,13 @@ class ID3Classifier(BaseTree):
                 self.leaf_nodes.append(leaf_node)
             # If there are no more features to split (and target is not pure), create a leaf with the most common value
             elif conditional_X.shape[1] == 1:
-                best_value = conditional_y.mode()[0]
+                best_value = self.get_default_value(conditional_y)
                 leaf_node = Node(value=best_value)
                 self.leaf_nodes.append(leaf_node)
             # Create a new node using the best feature
             else:
                 leaf_node_feat, leaf_node_best_split_point = self._compute_best_feature(conditional_X, conditional_y)
-                default_value = conditional_y.mode()[0]
+                default_value = self.get_default_value(conditional_y)
                 leaf_node = Node(feature=leaf_node_feat, value=default_value, split_point=leaf_node_best_split_point)
                 visited_nodes.append(leaf_node_feat)
                 queue.append(leaf_node)  # Append the new node (stump's leaf node) to the end of the queue
@@ -499,22 +498,19 @@ class ID3Classifier(BaseTree):
 if __name__ == '__main__':
     def create_dataset():
         data = {
-             "Outlook": ["Sunny", "Rain", "Overcast", "Rain", "Rain", "Rain", "Overcast", "Sunny", "Sunny", "Rain",
-                         "Sunny", "Overcast", "Overcast", "Rain"],
-             "Temperature": [30, 35, 3, 23, 15, 14, 14, 21, 10, 22, 23, 20, 28, 19],
-             "Humidity": ["High", "High", "High", "High", "Normal", "Normal", "Normal", "High", "Normal", "Normal",
-                          "Normal", "High", "Normal", "High"],
-             "Wind": ["Weak", "Strong", "Weak", "Weak", "Weak", "Strong", "Strong", "Weak", "Weak", "Weak", "Strong",
-                      "Strong", "Weak", "Strong"],
-             "Play": ["No", "No", "Yes", "Yes", "Yes", "No", "Yes", "No", "Yes", "Yes", "Yes", "Yes", "Yes", "No"]
+             "Outlook"     : ["Sunny", "Rain", "Overcast", "Rain", "Rain", "Rain", "Overcast", "Sunny", "Sunny", "Rain", "Sunny", "Overcast", "Overcast", "Rain"],
+             "Temperature" : [30, 35, 3, 23, 15, 14, 14, 21, 10, 22, 23, 20, 28, 19],
+             "Humidity"    : ["High", "High", "High", "High", "Normal", "Normal", "Normal", "High", "Normal", "Normal", "Normal", "High", "Normal", "High"],
+             "Wind"        : ["Weak", "Strong", "Weak", "Weak", "Weak", "Strong", "Strong", "Weak", "Weak", "Weak", "Strong", "Strong", "Weak", "Strong"],
+             "Play"        : ["No", "No", "Yes", "Yes", "Yes", "No", "Yes", "No", "Yes", "Yes", "Yes", "Yes", "Yes", "No"]
         }
 
         data_test = {
-            "Outlook": ["Sunny", "Rain"],
-            "Temperature": [32, 24],
-            "Humidity": ["High", "High"], # "High", "High", "Normal", "Normal", "Normal", "High", "Normal", "Normal", "Normal", "High", "Normal", "High"],
-            "Wind": ["Weak", "Strong"], #, "Weak", "Weak", "Weak", "Strong", "Strong", "Weak", "Weak", "Weak", "Strong", "Strong", "Weak", "Strong"],
-            "Play": ["No", "No"]
+             "Outlook"     : ["Sunny", "Rain"],
+             "Temperature" : [32, 24],
+             "Humidity"    : ["High", "High"],
+             "Wind"        : ["Weak", "Strong"],
+             "Play"        : ["No", "No"]
         }
 
         return pd.DataFrame(data), pd.DataFrame(data_test)
