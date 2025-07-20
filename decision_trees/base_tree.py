@@ -1,38 +1,18 @@
 from io import BytesIO
-from typing import Union
 
 import matplotlib
 matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
-import pandas as pd
 
 from graphviz import Digraph
 from PIL import Image
 
 
 class BaseTree:
-    def __init__(self, numerical_features: tuple, task: Union[None, str] = None):
-        assert task in ('classification', 'regression')
-
+    def __init__(self, numerical_features: tuple,):
         self.tree = None
         self.leaf_nodes = []
         self.numerical_features = numerical_features
-        self.task = task
-
-    def get_default_value(self, y: pd.Series) -> Union[str, float]:
-        """
-        Get default value of an intermediate node
-
-        Parameters:
-        ----------
-        y : pd.Series
-            Conditioned target value
-
-        Returns:
-        -------
-        Mode of y if classification task, else its mean
-        """
-        return y.mode()[0] if self.task == 'classification' else y.mean()
 
     @staticmethod
     def _render_tree(decision_tree: Digraph) -> None:

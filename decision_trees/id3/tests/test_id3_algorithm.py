@@ -1,6 +1,8 @@
 import pandas as pd
 
+from decision_trees.id3.id3 import ID3
 from decision_trees.id3.id3_classifier import ID3Classifier
+from decision_trees.id3.id3_regressor import ID3Regressor
 
 
 class TestID3Classifier:
@@ -97,10 +99,32 @@ class TestID3Classifier:
                     "Play": ["No", "No"]
                 })
             ),
+        ],
+        'REGRESSOR_CONTINUOUS_FEATURES_DFS':
+        [
+            (
+                (
+                    ('Temperature',),
+                    pd.DataFrame({
+                        "Outlook"      : [ "Sunny", "Sunny", "Overcast", "Rain", "Rain", "Rain", "Overcast", "Sunny", "Sunny", "Rain", "Sunny", "Overcast", "Overcast", "Rain"],
+                        "Temperature"  : [ 32, 31, 40, 25, 16, 15, 11, 22, 16, 20, 21, 21, 28, 23],
+                        "Humidity"     : [ "High", "High", "High", "High", "Normal", "Normal", "Normal", "High", "Normal", "Normal", "Normal", "High", "Normal", "High"],
+                        "Wind"         : [ "Weak", "Cold", "Weak", "Weak", "Weak", "Cold", "Cold", "Weak", "Weak", "Weak", "Cold", "Cold", "Weak", "Cold"],
+                        "Hours Played" : [ 25, 30, 46, 45, 52, 23, 43, 35, 38, 46, 48, 52, 44, 30]
+                })
+                ),
+                pd.DataFrame({
+                        "Outlook"      : ["Sunny", "Rain"],
+                        "Temperature"  : [31, 24],
+                        "Humidity"     : ["High", "High"],
+                        "Wind"         : ["Weak", "Strong"],
+                        "Hours Played" : [30, 39.2]
+                })
+            ),
         ]
     }
 
-    def test_id3_classifier(self):
+    def test_id3classifier_classifier(self):
         test_tree = ID3Classifier()
         for train, test in self.INPUT_OUTPUT_ERROR_DFS['GENERAL_DFS']:
             X_train, y_train = train.drop(['Play'], axis=1), train['Play']
@@ -120,12 +144,24 @@ class TestID3Classifier:
 
             assert test_output == test
 
-    def test_id3_continuous_features(self):
+    def test_id3classifier_continuous_features(self):
         for (numerical_features, train), test in self.INPUT_OUTPUT_ERROR_DFS['CONTINUOUS_FEATURES_DFS']:
             test_tree = ID3Classifier(numerical_features=numerical_features)
 
             X_train, y_train = train.drop(['Play'], axis=1), train['Play']
             X_test, y_test = test.drop(['Play'], axis=1), test['Play'].to_list()
+
+            test_tree.fit(X_train, y_train)
+            predicted_output = test_tree.predict(X_test)
+
+            assert predicted_output == y_test
+
+    def test_id3regressor_continuous_features(self):
+        for (numerical_features, train), test in self.INPUT_OUTPUT_ERROR_DFS['REGRESSOR_CONTINUOUS_FEATURES_DFS']:
+            test_tree = ID3Regressor(numerical_features=numerical_features)
+
+            X_train, y_train = train.drop(['Hours Played'], axis=1), train['Hours Played']
+            X_test, y_test = test.drop(['Hours Played'], axis=1), test['Hours Played'].to_list()
 
             test_tree.fit(X_train, y_train)
             predicted_output = test_tree.predict(X_test)

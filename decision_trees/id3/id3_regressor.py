@@ -1,11 +1,14 @@
 import pandas as pd
 
-from decision_trees.id3.id3_classifier import ID3Classifier
+from decision_trees.id3.id3 import ID3
 
-class ID3Regressor(ID3Classifier):
+class ID3Regressor(ID3):
     def __init__(self, numerical_features=(), impurity_criterion='std'):
-        super().__init__(numerical_features, task='regression')
+        super().__init__(numerical_features)
         self.impurity_criterion = impurity_criterion
+
+    def _get_task(self) -> str:
+        return 'regression'
 
     def _compute_target_impurity(self, y: pd.Series) -> float:
         """
@@ -61,42 +64,12 @@ class ID3Regressor(ID3Classifier):
         """
 
         if self.impurity_criterion == 'std':
-            impurity =  self._compute_feature_std(X, y, sample_size)
+            impurity =  self._compute_feature_impurity(X, y, sample_size)
         else:
             raise NotImplementedError(f'Impurity Criterion {self.impurity_criterion} not Implemented!')
 
         information_gain = y_impurity - impurity
         return information_gain
-
-    def _compute_feature_std(self, X: pd.Series, y: pd.Series, sample_size: int) -> float:
-        """
-        Compute the entropy for a given feature.
-
-        Parameters:
-        ----------
-        X : pd.Series
-            Observations of a given feature.
-        y : pd.Series or pd.DataFrame
-            The target variable(s).
-        feat : str
-            Feature for which to compute information gain.
-        sample_size : int
-            Number of samples to consider from X and y.
-
-        Returns:
-        -------
-        entropy : float
-            Entropy resulting from splitting on the given feature.
-        """
-
-        entropy = 0
-        feature_observations = X.unique()
-        for observation in feature_observations:
-            y_filtered_by_feat_obs = y[X.isin([observation])]
-            y_filtered_by_feat_obs_entropy = self._compute_target_impurity(y_filtered_by_feat_obs)
-            proba_weight = X.value_counts()[observation] / sample_size
-            entropy += proba_weight * y_filtered_by_feat_obs_entropy
-        return entropy
 
 
 if __name__ == '__main__':
