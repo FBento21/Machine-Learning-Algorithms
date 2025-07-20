@@ -164,27 +164,6 @@ class ID3Classifier(BaseTree):
         best_feature = max(information_gain_split, key=lambda x: information_gain_split[x]['information_gain'])
         return best_feature, information_gain_split[best_feature]['best_split_point']
 
-    def _filter_one_by_dict(self, x: pd.Series, rel_dict: dict) -> bool:
-        """
-        Applies a transformation to a DataFrame row based on the tree path
-        to check if the sample was already handled or not.
-        This function is intended to be used with `pandas.DataFrame.apply`.
-
-        Parameters:
-        ----------
-        row : pd.Series
-            A single row from a DataFrame.
-        rel_dict : dict
-            A dictionary where keys are column names in `X` and values are the CustomLambda functions
-            with the info if a sample should be filtered or not.
-
-        Returns:
-        -------
-        Bool
-            True if sample should not be filtered, False otherwise
-        """
-        return all(rel_function(x[obs]) if obs in self.numerical_features else rel_function(x[obs]) == x[obs] for obs, rel_function in rel_dict.items())
-
     def _filter_df_by_dict(self, X: pd.DataFrame, y: pd.Series, relations_dict: dict) -> tuple[pd.DataFrame, pd.Series]:
         """
         Filters rows in a DataFrame `X` and its corresponding labels `y` based on a dictionary of column-value pairs.
@@ -211,7 +190,7 @@ class ID3Classifier(BaseTree):
             The filtered target values corresponding to the retained rows in `X_filtered`.
         """
 
-        condition = X.apply(self._filter_one_by_dict, axis=1, args=(relations_dict,))
+        condition = X.apply(lambda x: all(filter_rel(x[feat]) for feat, filter_rel in relations_dict.items()), axis=1)
         X_filtered = X[condition].drop(list(set(relations_dict) - set(self.numerical_features)), axis=1)
         y_filtered = y[condition]
 
@@ -317,7 +296,7 @@ class ID3Classifier(BaseTree):
 
         if root_node_split_point is None:
             repr_ = observation
-            filter_relation = CustomLambda(lambda x: observation, observation)
+            filter_relation = CustomLambda(lambda x: x == observation, observation)
         else:
             repr_ = f'<= {root_node_split_point}' if observation else f'> {root_node_split_point}'
             filter_relation = CustomLambda(lambda x: x <= root_node_split_point, repr_)
@@ -532,10 +511,10 @@ if __name__ == '__main__':
 
         data_test = {
             "Outlook": ["Sunny", "Rain"],
-            "Temperature": ["Hot", "Mild"],
+            "Temperature": [32, 24],
             "Humidity": ["High", "High"], # "High", "High", "Normal", "Normal", "Normal", "High", "Normal", "Normal", "Normal", "High", "Normal", "High"],
             "Wind": ["Weak", "Strong"], #, "Weak", "Weak", "Weak", "Strong", "Strong", "Weak", "Weak", "Weak", "Strong", "Strong", "Weak", "Strong"],
-            "Play": ["No", "Yes"]
+            "Play": ["No", "No"]
         }
 
         return pd.DataFrame(data), pd.DataFrame(data_test)
@@ -543,9 +522,10 @@ if __name__ == '__main__':
     df_train, df_test = create_dataset()
 
     X_train, y_train = df_train.drop(['Play'], axis=1), df_train['Play']
-    X_test, y_test = df_test.drop(['Play'], axis=1), df_test['Play']
+    X_test, y_test = df_test.drop(['Play'], axis=1), df_test['Play'].to_list()
+    print('True y:  ', y_test)
 
     tree = ID3Classifier(numerical_features=('Temperature',))
     tree.fit(X_train, y_train)
+    print('Predict: ', tree.predict(X_test))
     tree.visualize_tree()
-    # pred = tree.predict(X_test)
