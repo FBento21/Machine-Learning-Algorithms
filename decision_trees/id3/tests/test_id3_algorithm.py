@@ -1,6 +1,5 @@
 import pandas as pd
 
-from decision_trees.id3.id3 import ID3
 from decision_trees.id3.id3_classifier import ID3Classifier
 from decision_trees.id3.id3_regressor import ID3Regressor
 
