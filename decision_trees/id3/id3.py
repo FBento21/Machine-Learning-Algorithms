@@ -14,27 +14,10 @@ class ID3(ABC, BaseTree):
         super().__init__(numerical_features)
 
         self.impurity_criterion = impurity_criterion
-        self.task = self._get_task()
 
     @abstractmethod
-    def _get_task(self) -> str:
-        """Must be implemented by ID3Classifier or ID3Regressor to return 'classification' or 'regression'"""
-        pass
-
     def get_default_value(self, y: pd.Series) -> Union[str, float]:
-        """
-        Get default value of an intermediate node
-
-        Parameters:
-        ----------
-        y : pd.Series
-            Conditioned target value
-
-        Returns:
-        -------
-        Mode of y if classification task, else its mean
-        """
-        return y.mode()[0] if self.task == 'classification' else y.mean()
+        """Implemented by ID3Classifier or ID3Regressor"""
 
     @abstractmethod
     def _compute_target_impurity(self, y: pd.Series) -> float:
@@ -83,8 +66,8 @@ class ID3(ABC, BaseTree):
         best_split_point = np.nan
         best_split_point_information_gain = -np.inf
         for split_point in possible_split_points:
-            X_feature_splitted = (X <= split_point).astype(str)
-            information_gain_on_split = self._compute_feature_information_gain(X_feature_splitted, y, sample_size, y_impurity)
+            X_feature_split = (X <= split_point).astype(str)
+            information_gain_on_split = self._compute_feature_information_gain(X_feature_split, y, sample_size, y_impurity)
             if information_gain_on_split > best_split_point_information_gain:
                 best_split_point_information_gain = information_gain_on_split
                 best_split_point = split_point

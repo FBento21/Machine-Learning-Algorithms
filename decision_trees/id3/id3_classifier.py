@@ -1,3 +1,5 @@
+from typing import Union
+
 import numpy as np
 import pandas as pd
 
@@ -9,8 +11,21 @@ class ID3Classifier(ID3):
         super().__init__(numerical_features)
         self.impurity_criterion = impurity_criterion
 
-    def _get_task(self) -> str:
-        return 'classification'
+    def get_default_value(self, y: pd.Series) -> Union[str, float]:
+        """
+        Get default value of an intermediate node
+
+        Parameters:
+        ----------
+        y : pd.Series
+            Conditioned target value
+
+        Returns:
+        -------
+        Mode of y
+        """
+
+        return y.mode()[0]
 
     def _compute_target_impurity(self, y: pd.Series) -> float:
         """

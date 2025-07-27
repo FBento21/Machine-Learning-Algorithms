@@ -1,3 +1,5 @@
+from typing import Union
+
 import pandas as pd
 
 from decision_trees.id3.id3 import ID3
@@ -7,8 +9,21 @@ class ID3Regressor(ID3):
         super().__init__(numerical_features)
         self.impurity_criterion = impurity_criterion
 
-    def _get_task(self) -> str:
-        return 'regression'
+    def get_default_value(self, y: pd.Series) -> Union[str, float]:
+        """
+        Get default value of an intermediate node
+
+        Parameters:
+        ----------
+        y : pd.Series
+            Conditioned target value
+
+        Returns:
+        -------
+        Mean of y
+        """
+
+        return y.mean()
 
     def _compute_target_impurity(self, y: pd.Series) -> float:
         """
